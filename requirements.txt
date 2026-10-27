@@ -8,6 +8,7 @@ pyspacemouse
 PyQt6
 pyquaternion
 pyrealsense2
+pyserial
 pyzmq
 pure-python-adb
 quaternion

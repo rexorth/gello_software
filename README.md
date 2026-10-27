@@ -101,6 +101,17 @@ Sample configs for the YAM arm and the xarm can be found in `configs`.
 - **DynamixelRobotConfig**: Motor-specific settings including IDs, offsets, signs, and gripper.
 - **Control Parameters**: Update rates (`hz`), step limits (`max_steps`), and safety settings.
 
+### Magnetic Encoders Instead of Dynamixels
+
+A GELLO can be built with AS5600 magnetic encoders (a few dollars each) in place of the
+Dynamixels: one per joint and one for the trigger, each on its own channel of a TCA9548A I2C
+multiplexer, read by an ESP32 over USB. The joints are passive, so there's no torque,
+gravity compensation or force feedback. Wiring, firmware and calibration are in
+[`firmware/as5600_leader`](firmware/as5600_leader/README.md). In `PORT_CONFIG_MAP`, such an arm
+takes an `EncoderRobotConfig` (multiplexer channels instead of servo IDs; offsets in radians
+from `scripts/gello_get_offset.py --encoder`) where a Dynamixel arm takes a
+`DynamixelRobotConfig`; everything downstream is the same.
+
 ## Manual Configuration for Other Robots
 
 #### Python Configuration for Non-YAM arms
@@ -317,6 +328,7 @@ python gello/factr/gravity_compensation.py --config configs/yam_gello_factr_hw.y
 ### Code Organization
 
 ```
+├── firmware/            # ESP32 firmware for magnetic-encoder GELLOs
 ├── scripts/             # Utility scripts
 ├── experiments/         # Entry points and launch scripts
 ├── gello/               # Core GELLO package
@@ -325,6 +337,7 @@ python gello/factr/gravity_compensation.py --config configs/yam_gello_factr_hw.y
 │   ├── data_utils/      # Data processing utilities
 │   ├── dm_control_tasks/# MuJoCo environment utilities
 │   ├── dynamixel/       # Dynamixel hardware interface
+│   ├── encoder/         # AS5600 magnetic-encoder interface (firmware/as5600_leader)
 |   ├── factr/           # gravity compensation
 │   ├── robots/          # Robot-specific interfaces
 │   ├── utils/           # Shared launch and control utilities

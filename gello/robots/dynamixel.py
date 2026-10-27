@@ -1,8 +1,11 @@
-from typing import Dict, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple
 
 import numpy as np
 
 from gello.robots.robot import Robot
+
+if TYPE_CHECKING:
+    from gello.dynamixel.driver import DynamixelDriverProtocol
 
 
 class DynamixelRobot(Robot):
@@ -18,13 +21,11 @@ class DynamixelRobot(Robot):
         baudrate: int = 57600,
         gripper_config: Optional[Tuple[int, float, float]] = None,
         start_joints: Optional[np.ndarray] = None,
+        driver: Optional[Any] = None,
     ):
-        from gello.dynamixel.driver import (
-            DynamixelDriver,
-            DynamixelDriverProtocol,
-            FakeDynamixelDriver,
-        )
-
+        """driver: reads the joints instead of Dynamixels on `port`, e.g. a
+        gello.encoder.EncoderDriver for a GELLO built with magnetic encoders. It returns the
+        joints (gripper last) in radians."""
         print(f"attempting to connect to port: {port}")
         self.gripper_open_close: Optional[Tuple[float, float]]
         if gripper_config is not None:
@@ -45,7 +46,7 @@ class DynamixelRobot(Robot):
             self.gripper_open_close = None
 
         self._joint_ids = joint_ids
-        self._driver: DynamixelDriverProtocol
+        self._driver: "DynamixelDriverProtocol"
 
         if joint_offsets is None:
             self._joint_offsets = np.zeros(len(joint_ids))
@@ -69,11 +70,17 @@ class DynamixelRobot(Robot):
             np.abs(self._joint_signs) == 1
         ), f"joint_signs: {self._joint_signs}"
 
-        if real:
-            self._driver = DynamixelDriver(joint_ids, port=port, baudrate=baudrate)
-            self._driver.set_torque_mode(False)
+        if driver is not None:
+            self._driver = driver
         else:
-            self._driver = FakeDynamixelDriver(joint_ids)
+            # Only here: the Dynamixel SDK isn't needed for other drivers.
+            from gello.dynamixel.driver import DynamixelDriver, FakeDynamixelDriver
+
+            if real:
+                self._driver = DynamixelDriver(joint_ids, port=port, baudrate=baudrate)
+                self._driver.set_torque_mode(False)
+            else:
+                self._driver = FakeDynamixelDriver(joint_ids)
         self._torque_on = False
         self._last_pos = None
         self._alpha = 0.99
@@ -99,6 +106,8 @@ class DynamixelRobot(Robot):
             if gripper_config is not None:
                 new_joint_offsets.append(self._joint_offsets[-1])
             self._joint_offsets = np.array(new_joint_offsets)
+            # That reading was through the old offsets: don't smooth the next one toward it.
+            self._last_pos = None
 
     def num_dofs(self) -> int:
         return len(self._joint_ids)
