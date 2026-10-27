@@ -72,9 +72,8 @@ class EncoderRobotConfig:
         assert len(self.channels) == len(self.joint_offsets)
         assert len(self.channels) == len(self.joint_signs)
 
-    def make_robot(
-        self, port: str = "/dev/ttyACM0", start_joints: Optional[np.ndarray] = None
-    ) -> DynamixelRobot:
+    def make_driver(self, port: str = "/dev/ttyACM0"):
+        """The encoder driver: the joints' channels, then the trigger's."""
         from gello.encoder import EncoderDriver
 
         channels = list(self.channels)
@@ -84,9 +83,17 @@ class EncoderRobotConfig:
             channels.append(channel)
             # The trigger travels less than a turn: read it within half a turn of mid-travel.
             single_turn[channel] = float(np.deg2rad((open_deg + closed_deg) / 2))
-        driver = EncoderDriver(
+        return EncoderDriver(
             channels, port=port, stale_s=self.stale_s, single_turn=single_turn
         )
+
+    def make_robot(
+        self,
+        port: str = "/dev/ttyACM0",
+        start_joints: Optional[np.ndarray] = None,
+        driver=None,
+    ) -> DynamixelRobot:
+        """driver: one from make_driver, to keep a handle on it (buttons, status)."""
         return DynamixelRobot(
             joint_ids=self.channels,
             joint_offsets=list(self.joint_offsets),
@@ -95,7 +102,7 @@ class EncoderRobotConfig:
             port=port,
             gripper_config=self.gripper_config,
             start_joints=start_joints,
-            driver=driver,
+            driver=driver if driver is not None else self.make_driver(port),
         )
 
 
